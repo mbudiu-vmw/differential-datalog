@@ -585,15 +585,13 @@ public class DDlogAPI {
         String javaHome = System.getenv("JAVA_HOME");
 
         command.add("-I" + javaHome + "/include");
-        command.add("-I" + javaHome + "/include/" + os);
+        command.add("-I" + javaHome + "/include/" + (os.equals("mac os x") ? "darwin" : os));
         command.add("-I" + rustDir);
         command.add("-I" + ddlogInstallationPath + "/lib");
         command.add(ddlogInstallationPath + "/java/ddlogapi.c");
         command.add("-L" + rustDir + "/target/release/");
         String libRoot = Paths.get(rustDir).getFileName().toString();
         command.add("-l" + libRoot);
-        command.add("-z");
-        command.add("noexecstack");
         command.add("-o");
         command.add(libName(ddlogLibrary));
         exitCode = runProcess(command, null);

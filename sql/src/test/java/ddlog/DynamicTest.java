@@ -1,5 +1,7 @@
 package ddlog;
 
+import com.google.common.base.Splitter;
+import com.vmware.ddlog.ir.DDlogProgram;
 import com.vmware.ddlog.translator.Translator;
 import ddlogapi.*;
 import org.jooq.DSLContext;
@@ -8,14 +10,23 @@ import org.jooq.impl.DSL;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.util.List;
 import java.util.Properties;
+import java.util.stream.Collectors;
 
 public class DynamicTest {
     /*
@@ -73,4 +84,39 @@ public class DynamicTest {
         api.applyUpdates(ca);
         api.transactionCommitDumpChanges(s -> Assert.assertEquals("From 0 Insert O{10}", s.toString()));
     }
+
+    @Test
+    public void testFullSchemaCompilation() {
+        final InputStream resourceAsStream = DynamicTest.class.getResourceAsStream("/test_tables.sql");
+        try (final BufferedReader tables = new BufferedReader(new InputStreamReader(resourceAsStream,
+                StandardCharsets.UTF_8))) {
+            final Translator t = new Translator(null);
+            final String schemaAsString = tables.lines()
+                    .filter(line -> !line.startsWith("--")) // remove SQL comments
+                    .collect(Collectors.joining("\n"));
+            final List<String> semiColonSeparated = Splitter.on(";")
+                    .trimResults()
+                    .omitEmptyStrings()
+                    .splitToList(schemaAsString);
+            semiColonSeparated // remove SQL comments
+                    .forEach(s -> {
+                        System.out.println(s);
+                        t.translateSqlStatement(s);
+                    });
+            final DDlogProgram dDlogProgram = t.getDDlogProgram();
+            final String ddlogProgramAsString = dDlogProgram.toString();
+            final String filename = "program.dl";
+            final Path path = Files.write(Paths.get(filename), ddlogProgramAsString.getBytes());
+            path.toFile().deleteOnExit();
+            try {
+                final DDlogAPI dDlogAPI = Translator.compileAndLoad(filename, "..", "../sql/lib/");
+                Assert.assertNotNull(dDlogAPI);
+            } catch (DDlogException | NoSuchFieldException | IllegalAccessException e) {
+                throw new RuntimeException(e);
+            }
+        } catch (final IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
 }
