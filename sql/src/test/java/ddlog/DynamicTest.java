@@ -87,7 +87,22 @@ public class DynamicTest {
 
     @Test
     public void testFullSchemaCompilation() {
-        final InputStream resourceAsStream = DynamicTest.class.getResourceAsStream("/test_tables.sql");
+        compileSchema("/test_tables.sql");
+    }
+
+    @Test
+    public void testTableOnlySchemaCompilation() {
+        compileSchema("/test_tables_only.sql");
+    }
+
+    @Test
+    public void testSingleTableCompilation() {
+        compileSchema("/test_tables_minimal.sql");
+    }
+
+
+    void compileSchema(final String testFile) {
+        final InputStream resourceAsStream = DynamicTest.class.getResourceAsStream(testFile);
         try (final BufferedReader tables = new BufferedReader(new InputStreamReader(resourceAsStream,
                 StandardCharsets.UTF_8))) {
             final Translator t = new Translator(null);
@@ -118,5 +133,4 @@ public class DynamicTest {
             throw new RuntimeException(e);
         }
     }
-
 }
